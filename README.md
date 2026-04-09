@@ -230,5 +230,5 @@ MIT License
 ---
 
 **Version**: 7.0  
-**Author**: Subhankar Bhondr  
+**Author**: Subhankar Bhandari  
 **GitHub**: https://github.com/subhankarbhndr211/ThreatForge
