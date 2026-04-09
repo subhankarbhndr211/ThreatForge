@@ -1,0 +1,25 @@
+[
+  {
+    "id": "apt29",
+    "name": "APT29 / Cozy Bear",
+    "origin": "Russia",
+    "severity": "CRIT",
+    "ttps": [
+      {
+        "tactic": "Initial Access",
+        "technique": "T1566.001",
+        "name": "Spearphishing"
+      },
+      {
+        "tactic": "Credential Access",
+        "technique": "T1003.006",
+        "name": "DCSync"
+      }
+    ],
+    "hunt_queries": {
+      "splunk": "index=* EventCode=4662",
+      "sentinel": "SecurityEvent | where EventID == 4662",
+      "defender": "DeviceProcessEvents | where ProcessCommandLine has 'DCSync'"
+    }
+  }
+]

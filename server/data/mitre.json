@@ -1,0 +1,14 @@
+{
+  "techniques": [
+    {
+      "id": "T1566.001",
+      "name": "Spearphishing Attachment",
+      "description": "Phishing with malicious attachment"
+    },
+    {
+      "id": "T1003.006",
+      "name": "DCSync",
+      "description": "Credential dumping via replication"
+    }
+  ]
+}

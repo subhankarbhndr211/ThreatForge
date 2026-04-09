@@ -1,0 +1,717 @@
+'use strict';
+const express = require('express');
+const router  = express.Router();
+
+const LOG_LIBRARY = {
+
+  // ════════════════════════════════════════════════════════
+  // WINDOWS
+  // ════════════════════════════════════════════════════════
+  windows: {
+    label:'Windows', icon:'🪟', color:'#0078d4',
+    categories:{
+      security:{
+        label:'Security Events', source:'WinEventLog:Security',
+        events:[
+          {id:'4624',name:'Successful Logon',            severity:'INFO',threat:'Lateral Movement/Baseline',   mitre:'T1078',    desc:'User logon. Monitor Type 3 (Network), Type 10 (RDP), Type 4 (Batch).'},
+          {id:'4625',name:'Failed Logon',                severity:'MED', threat:'Brute Force/Password Spray',  mitre:'T1110',    desc:'Failed logon. High frequency = brute force. Many accounts = spray.'},
+          {id:'4648',name:'Logon with Explicit Creds',   severity:'HIGH',threat:'Lateral Movement/PTH',        mitre:'T1550.002',desc:'runas or pass-the-hash. Explicit credential use across systems.'},
+          {id:'4662',name:'AD Object Accessed',          severity:'MED', threat:'Credential Dumping/DCSync',   mitre:'T1003',    desc:'AD object operation. Watch for replication permissions = DCSync.'},
+          {id:'4672',name:'Special Privileges Assigned', severity:'HIGH',threat:'Privilege Escalation',        mitre:'T1068',    desc:'Admin-equivalent privileges at logon. Monitor non-standard accounts.'},
+          {id:'4688',name:'Process Created',             severity:'MED', threat:'Execution/Malware',           mitre:'T1059',    desc:'New process. Enable command-line audit policy for full visibility.'},
+          {id:'4689',name:'Process Exited',              severity:'INFO',threat:'Execution Tracking',          mitre:'T1059',    desc:'Process termination. Correlate with 4688 for full execution chain.'},
+          {id:'4697',name:'Service Installed',           severity:'HIGH',threat:'Persistence',                 mitre:'T1543.003',desc:'New service. Common malware persistence mechanism.'},
+          {id:'4698',name:'Scheduled Task Created',      severity:'HIGH',threat:'Persistence/Execution',       mitre:'T1053.005',desc:'Scheduled task. Attacker persistence. Check task XML for commands.'},
+          {id:'4702',name:'Scheduled Task Updated',      severity:'HIGH',threat:'Persistence',                 mitre:'T1053.005',desc:'Existing task modified. Attackers hijack legitimate tasks.'},
+          {id:'4720',name:'User Account Created',        severity:'HIGH',threat:'Persistence/Backdoor',        mitre:'T1136.001',desc:'New local account. Watch for accounts outside normal provisioning.'},
+          {id:'4726',name:'User Account Deleted',        severity:'MED', threat:'Defense Evasion/Cleanup',     mitre:'T1070',    desc:'Account deleted. Attackers delete tracks after compromise.'},
+          {id:'4728',name:'User Added to Global Group',  severity:'HIGH',threat:'Privilege Escalation',        mitre:'T1098',    desc:'Group membership change. Critical for Domain Admins group.'},
+          {id:'4732',name:'User Added to Local Group',   severity:'HIGH',threat:'Privilege Escalation',        mitre:'T1098',    desc:'Local group change. Monitor Administrators, Remote Desktop Users.'},
+          {id:'4756',name:'User Added to Universal Group',severity:'HIGH',threat:'Privilege Escalation',       mitre:'T1098',    desc:'Universal group change. Enterprise Admins, Schema Admins critical.'},
+          {id:'4768',name:'TGT Requested (Kerberos)',    severity:'MED', threat:'Kerberoasting/AS-REP Roasting',mitre:'T1558.003',desc:'Kerberos TGT request. AS-REP roasting starts here (no pre-auth).'},
+          {id:'4769',name:'TGS Requested (Kerberos)',    severity:'MED', threat:'Kerberoasting',               mitre:'T1558.003',desc:'Service ticket. RC4 encryption (0x17) = Kerberoasting attempt.'},
+          {id:'4771',name:'Kerberos Pre-Auth Failed',    severity:'MED', threat:'Brute Force/AS-REP Roasting', mitre:'T1110',    desc:'Kerberos auth failure. Frequent = brute force or misconfig.'},
+          {id:'4776',name:'NTLM Auth Attempt',           severity:'MED', threat:'Brute Force/NTLM Relay',      mitre:'T1110',    desc:'NTLM cred validation. 0xC000006A=wrong pwd. Watch relay attacks.'},
+          {id:'4778',name:'Session Reconnected (RDP)',   severity:'INFO',threat:'Lateral Movement',            mitre:'T1021.001',desc:'RDP reconnect. Baseline for unusual source IPs or off-hours.'},
+          {id:'4779',name:'Session Disconnected (RDP)',  severity:'INFO',threat:'Lateral Movement',            mitre:'T1021.001',desc:'RDP disconnect. Correlate with 4778 for RDP session timeline.'},
+          {id:'4946',name:'Windows Firewall Rule Added', severity:'HIGH',threat:'Defense Evasion',             mitre:'T1562.004',desc:'Firewall rule added. Attackers open inbound ports for backdoors.'},
+          {id:'4964',name:'Special Groups Logon',        severity:'HIGH',threat:'Privilege Abuse',             mitre:'T1078',    desc:'Special group membership at logon. Configure for privileged groups.'},
+          {id:'5136',name:'AD Object Modified',          severity:'HIGH',threat:'Persistence/Privilege Escalation',mitre:'T1484',desc:'AD object change. AdminSDHolder, GPO, schema modifications critical.'},
+          {id:'5140',name:'Network Share Accessed',      severity:'MED', threat:'Lateral Movement/Data Theft',  mitre:'T1021.002',desc:'Share access. C$/ADMIN$ access from workstations = suspicious.'},
+          {id:'5145',name:'Share Object Checked',        severity:'MED', threat:'Discovery/Lateral Movement',  mitre:'T1135',    desc:'File permission check. Mass 5145 = share enumeration/ransomware prep.'},
+          {id:'7045',name:'New Service Installed (System)',severity:'HIGH',threat:'Persistence/BYOVD',         mitre:'T1543.003',desc:'Service from SYSTEM context. BYOVD drivers often appear here.'},
+          {id:'1102',name:'Audit Log Cleared',           severity:'CRIT',threat:'Defense Evasion',             mitre:'T1070.001',desc:'Security log cleared. Attacker covering tracks. Immediate investigation.'},
+          {id:'4670',name:'Permissions Changed on Object',severity:'HIGH',threat:'Privilege Escalation',      mitre:'T1222',    desc:'ACL/permission change. Watch for Everyone:FullControl on sensitive objects.'},
+          {id:'4657',name:'Registry Value Modified',     severity:'MED', threat:'Persistence/Defense Evasion', mitre:'T1112',    desc:'Registry modification. Run keys, services, security settings.'},
+        ]
+      },
+      sysmon:{
+        label:'Sysmon Events', source:'XmlWinEventLog:Microsoft-Windows-Sysmon/Operational',
+        events:[
+          {id:'1', name:'Process Created',              severity:'MED', threat:'Execution/Malware',           mitre:'T1059',    desc:'Full process create with command line, hashes, parent. Most useful Sysmon event.'},
+          {id:'2', name:'File Creation Time Changed',   severity:'HIGH',threat:'Timestomping/Defense Evasion',mitre:'T1070.006',desc:'File timestamp modified. Attackers timestomp to blend with old files.'},
+          {id:'3', name:'Network Connection',           severity:'MED', threat:'C2/Lateral Movement',         mitre:'T1071',    desc:'Outbound TCP/UDP. Detect beaconing, C2, unexpected outbound connections.'},
+          {id:'5', name:'Process Terminated',           severity:'INFO',threat:'Execution Tracking',          mitre:'T1059',    desc:'Process end. Correlate with Event 1 for full execution timeline.'},
+          {id:'6', name:'Driver Loaded',                severity:'HIGH',threat:'BYOVD/Rootkit',               mitre:'T1014',    desc:'Kernel driver loaded. BYOVD attacks load vulnerable signed drivers.'},
+          {id:'7', name:'Image Loaded (DLL)',           severity:'MED', threat:'DLL Injection/Side-Loading',  mitre:'T1574',    desc:'DLL loaded by process. Detect DLL hijacking and side-loading attacks.'},
+          {id:'8', name:'CreateRemoteThread',           severity:'HIGH',threat:'Process Injection',           mitre:'T1055',    desc:'Remote thread injection. Cobalt Strike, Metasploit use this for injection.'},
+          {id:'9', name:'Raw Disk Access',              severity:'HIGH',threat:'Credential Dumping',          mitre:'T1003',    desc:'Low-level disk read. Attacker accessing SAM, NTDS.dit directly.'},
+          {id:'10',name:'Process Access (OpenProcess)', severity:'HIGH',threat:'Credential Dumping/Injection', mitre:'T1003.001',desc:'Process memory access. lsass.exe as target = credential dumping attempt.'},
+          {id:'11',name:'File Created',                 severity:'MED', threat:'Malware Drop/Persistence',    mitre:'T1105',    desc:'New file creation. Monitor temp dirs, startup folders, system directories.'},
+          {id:'12',name:'Registry Object Created/Deleted',severity:'MED',threat:'Persistence',               mitre:'T1112',    desc:'Registry key created or deleted. Run keys, service keys, COM hijacking.'},
+          {id:'13',name:'Registry Value Set',           severity:'MED', threat:'Persistence/Defense Evasion', mitre:'T1112',    desc:'Registry value written. HKLM\\Run, HKCU\\Run most suspicious.'},
+          {id:'15',name:'File Create Stream Hash',      severity:'MED', threat:'Defense Evasion/NTFS',        mitre:'T1564.004',desc:'Alternate data stream. Malware hiding in NTFS ADS.'},
+          {id:'17',name:'Pipe Created',                 severity:'MED', threat:'Lateral Movement',            mitre:'T1021',    desc:'Named pipe created. Cobalt Strike default pipe names: \\MSSE-*, \\postex_*'},
+          {id:'18',name:'Pipe Connected',               severity:'MED', threat:'Lateral Movement',            mitre:'T1021',    desc:'Named pipe connection. Psexec uses \\svcctl pipe for remote execution.'},
+          {id:'22',name:'DNS Query',                    severity:'MED', threat:'C2/DNS Exfiltration',         mitre:'T1071.004',desc:'DNS resolution. High-entropy domain names = DGA. Long labels = DNS exfil.'},
+          {id:'23',name:'File Deleted',                 severity:'MED', threat:'Defense Evasion',             mitre:'T1070.004',desc:'File deletion. Mass deletion = ransomware pre-encryption cleanup.'},
+          {id:'25',name:'Process Tampering',            severity:'HIGH',threat:'Defense Evasion/Injection',   mitre:'T1055',    desc:'Process hollowing or heresy detected. Advanced injection technique.'},
+          {id:'26',name:'File Delete Logged',           severity:'MED', threat:'Defense Evasion',             mitre:'T1070.004',desc:'Logged file deletion. Preserve deleted file hashes for forensics.'},
+        ]
+      },
+      powershell:{
+        label:'PowerShell Logs', source:'WinEventLog:Microsoft-Windows-PowerShell/Operational',
+        events:[
+          {id:'4103',name:'Module Logging',             severity:'MED', threat:'Execution/Obfuscation',       mitre:'T1059.001',desc:'PowerShell module activity. Captures cmdlet invocation with parameters.'},
+          {id:'4104',name:'Script Block Logging',       severity:'HIGH',threat:'Execution/Malware',           mitre:'T1059.001',desc:'PS script block captured. After deobfuscation — see true payload. Most valuable.'},
+          {id:'4105',name:'Command Start',              severity:'INFO',threat:'Execution Tracking',          mitre:'T1059.001',desc:'PowerShell command started. Correlate with 4104 for full context.'},
+          {id:'4106',name:'Command Stop',               severity:'INFO',threat:'Execution Tracking',          mitre:'T1059.001',desc:'PowerShell command completed. Duration analysis for long-running scripts.'},
+          {id:'400', name:'Engine Started',             severity:'MED', threat:'Execution',                   mitre:'T1059.001',desc:'PS engine started. NonInteractive host version = suspicious (bypass).'},
+          {id:'600', name:'Provider Started',           severity:'INFO',threat:'Execution Tracking',          mitre:'T1059.001',desc:'PS provider loaded. FileSystem, Registry, Certificate providers.'},
+        ]
+      },
+      wef:{
+        label:'WEF / WinRM Events', source:'WinEventLog:Microsoft-Windows-WinRM/Operational',
+        events:[
+          {id:'6',   name:'WSMan Session Created',      severity:'MED', threat:'Lateral Movement',           mitre:'T1021.006',desc:'WinRM session established. PowerShell remoting for lateral movement.'},
+          {id:'8',   name:'WSMan Request Received',     severity:'MED', threat:'Lateral Movement',           mitre:'T1021.006',desc:'Remote management request. Correlate with auth events on target.'},
+          {id:'169', name:'User Authenticated',         severity:'MED', threat:'Lateral Movement',           mitre:'T1021.006',desc:'WinRM authentication success. Track source of remote management.'},
+          {id:'91',  name:'Session Created',            severity:'MED', threat:'Lateral Movement',           mitre:'T1021.006',desc:'New WinRM session. Map with EventID 6 for lateral movement detection.'},
+        ]
+      },
+      tasks:{
+        label:'Task Scheduler', source:'WinEventLog:Microsoft-Windows-TaskScheduler/Operational',
+        events:[
+          {id:'106', name:'Task Registered',            severity:'HIGH',threat:'Persistence',                mitre:'T1053.005',desc:'New scheduled task. Check task action — encoded commands are red flags.'},
+          {id:'140', name:'Task Updated',               severity:'HIGH',threat:'Persistence',                mitre:'T1053.005',desc:'Task modified. Attackers hijack legitimate tasks.'},
+          {id:'141', name:'Task Deleted',               severity:'MED', threat:'Defense Evasion',            mitre:'T1070',    desc:'Task deleted. Cleanup after persistence no longer needed.'},
+          {id:'200', name:'Task Action Started',        severity:'MED', threat:'Execution',                  mitre:'T1053.005',desc:'Task executed. Correlate with 106 for full task lifecycle.'},
+          {id:'201', name:'Task Action Completed',      severity:'INFO',threat:'Execution Tracking',         mitre:'T1053.005',desc:'Task execution completed. Duration analysis for long-running tasks.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // ACTIVE DIRECTORY
+  // ════════════════════════════════════════════════════════
+  activedirectory:{
+    label:'Active Directory', icon:'🏢', color:'#0078d4',
+    categories:{
+      domaincontroller:{
+        label:'Domain Controller Events', source:'WinEventLog:Security (DCs only)',
+        events:[
+          {id:'4740',name:'Account Locked Out',          severity:'MED', threat:'Brute Force',                mitre:'T1110',    desc:'Account lockout. Mass lockouts across accounts = password spray targeting.'},
+          {id:'4767',name:'Account Unlocked',            severity:'MED', threat:'Brute Force Response',       mitre:'T1110',    desc:'Account unlocked. By admin or via automated process.'},
+          {id:'4765',name:'SID History Added',           severity:'HIGH',threat:'Privilege Escalation/Persistence',mitre:'T1134',desc:'SID history manipulation. Allows access to resources via historical SID.'},
+          {id:'4766',name:'SID History Add Failed',      severity:'HIGH',threat:'Privilege Escalation Attempt',mitre:'T1134',   desc:'Failed SID history add. Attempted but blocked.'},
+          {id:'4713',name:'Kerberos Policy Changed',     severity:'CRIT',threat:'Defense Evasion',            mitre:'T1484.001',desc:'Kerberos ticket lifetime changed. Attackers extend for long-lived tickets.'},
+          {id:'4716',name:'Trusted Domain Info Changed', severity:'CRIT',threat:'Defense Evasion',            mitre:'T1484',    desc:'Domain trust modified. New trust = potential path for lateral movement.'},
+          {id:'4739',name:'Domain Policy Changed',       severity:'CRIT',threat:'Defense Evasion/Persistence',mitre:'T1484.001',desc:'Domain policy modified. Password policy weakened = attacker preparation.'},
+          {id:'4741',name:'Computer Account Created',    severity:'MED', threat:'Persistence',                mitre:'T1136.002',desc:'New computer account. Used in resource-based constrained delegation attacks.'},
+          {id:'4742',name:'Computer Account Changed',    severity:'HIGH',threat:'Persistence/Privilege',      mitre:'T1098',    desc:'Computer account modified. SPN, delegation settings changes = attack prep.'},
+          {id:'4743',name:'Computer Account Deleted',    severity:'MED', threat:'Defense Evasion',            mitre:'T1070',    desc:'Computer account deleted. Cleanup after domain persistence.'},
+          {id:'5136',name:'AD Object Modified',          severity:'HIGH',threat:'Persistence/Privilege',      mitre:'T1484',    desc:'AD attribute changed. AdminSDHolder, msDS-AllowedToDelegateTo are high-value.'},
+          {id:'5141',name:'AD Object Deleted',           severity:'HIGH',threat:'Defense Evasion',            mitre:'T1070',    desc:'AD object deleted. Backdoor accounts, rogue GPOs.'},
+          {id:'4928',name:'AD Replica Source NC Established',severity:'CRIT',threat:'DCSync Attack',         mitre:'T1003.006',desc:'Replication source added. Non-DC establishing replication = DCSync attack.'},
+          {id:'4929',name:'AD Replica Source NC Removed', severity:'HIGH',threat:'DCSync Attack',            mitre:'T1003.006',desc:'Replication source removed. After DCSync — attacker cleaning up.'},
+          {id:'4930',name:'AD Replica Source NC Modified',severity:'HIGH',threat:'DCSync Attack',            mitre:'T1003.006',desc:'Replication source changed. Suspicious if from non-DC workstation.'},
+        ]
+      },
+      gpo:{
+        label:'Group Policy', source:'WinEventLog:Security + System',
+        events:[
+          {id:'4719',name:'System Audit Policy Changed', severity:'HIGH',threat:'Defense Evasion',            mitre:'T1562.002',desc:'Audit policy changed. Attackers disable audit logging to reduce detection.'},
+          {id:'4906',name:'CrashOnAuditFail Value Changed',severity:'HIGH',threat:'Defense Evasion',         mitre:'T1562.002',desc:'Audit crash setting changed. Disabling can bypass security controls.'},
+          {id:'4907',name:'Auditing Settings Changed',   severity:'HIGH',threat:'Defense Evasion',           mitre:'T1562.002',desc:'Object audit settings changed. Reducing auditing on sensitive objects.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // LINUX
+  // ════════════════════════════════════════════════════════
+  linux:{
+    label:'Linux', icon:'🐧', color:'#f5a623',
+    categories:{
+      auth:{
+        label:'Authentication (/var/log/auth.log)', source:'/var/log/auth.log or /var/log/secure',
+        events:[
+          {id:'ssh_accept',    name:'SSH Login Accepted',     severity:'INFO',threat:'Lateral Movement',      mitre:'T1021.004',desc:'Successful SSH auth. Monitor for unusual source IPs, service accounts.'},
+          {id:'ssh_fail',      name:'SSH Login Failed',       severity:'MED', threat:'Brute Force',           mitre:'T1110',    desc:'SSH auth failure. High frequency = brute force attack.'},
+          {id:'ssh_key',       name:'SSH Key Auth',           severity:'MED', threat:'Persistence/Lateral',   mitre:'T1098.004',desc:'Key-based SSH auth. Monitor for new authorized_keys additions.'},
+          {id:'sudo_cmd',      name:'sudo Command Executed',  severity:'MED', threat:'Privilege Escalation',  mitre:'T1548.003',desc:'sudo execution. Log command, user, and success/failure.'},
+          {id:'sudo_fail',     name:'sudo Authentication Failure',severity:'HIGH',threat:'Privilege Escalation Attempt',mitre:'T1548.003',desc:'Failed sudo attempt. User trying to escalate without authorization.'},
+          {id:'su_success',    name:'su Command Success',     severity:'HIGH',threat:'Privilege Escalation',  mitre:'T1548.003',desc:'User switched to another account including root.'},
+          {id:'new_session',   name:'PAM New Session',        severity:'INFO',threat:'Authentication',        mitre:'T1078',    desc:'PAM session opened. Corellate for full login lifecycle.'},
+          {id:'useradd',       name:'User Account Added',     severity:'HIGH',threat:'Persistence',          mitre:'T1136.001',desc:'New user created. useradd or adduser command executed.'},
+          {id:'passwd_change', name:'Password Changed',       severity:'MED', threat:'Credential Access',     mitre:'T1098',    desc:'User password changed. Attacker may be taking over account.'},
+          {id:'root_login',    name:'Root Login',             severity:'CRIT',threat:'Privilege Abuse',       mitre:'T1078.003',desc:'Direct root login. Should be disabled — use sudo instead.'},
+          {id:'cron_job',      name:'Cron Job Executed',      severity:'MED', threat:'Persistence/Execution', mitre:'T1053.003',desc:'Cron job ran. New cron jobs in /etc/cron* or /var/spool/cron = persistence.'},
+        ]
+      },
+      auditd:{
+        label:'Auditd Events', source:'/var/log/audit/audit.log',
+        events:[
+          {id:'SYSCALL',    name:'System Call',              severity:'MED', threat:'Execution/Evasion',      mitre:'T1059',    desc:'System call logged. Key syscalls: execve (exec), connect (network), ptrace (injection).'},
+          {id:'EXECVE',     name:'Command Execution',        severity:'MED', threat:'Execution',              mitre:'T1059.004',desc:'execve syscall. Full command line with arguments captured.'},
+          {id:'OPENAT',     name:'File Opened',              severity:'INFO',threat:'Discovery/Collection',   mitre:'T1083',    desc:'File open. /etc/passwd, /etc/shadow, /proc/mem access = credential theft.'},
+          {id:'CONNECT',    name:'Network Connection',       severity:'MED', threat:'C2/Lateral Movement',    mitre:'T1071',    desc:'Socket connect. Unusual outbound connections from servers.'},
+          {id:'USER_AUTH',  name:'User Authentication',      severity:'MED', threat:'Authentication',         mitre:'T1078',    desc:'PAM/auth event. Success or failure of user authentication attempt.'},
+          {id:'USER_CMD',   name:'User Command (sudo)',       severity:'MED', threat:'Privilege Escalation',  mitre:'T1548.003',desc:'sudo command executed. Captures the actual privileged command.'},
+          {id:'ADD_USER',   name:'User Added',               severity:'HIGH',threat:'Persistence',           mitre:'T1136',    desc:'useradd/adduser executed. New user creation event.'},
+          {id:'DEL_USER',   name:'User Deleted',             severity:'MED', threat:'Defense Evasion',        mitre:'T1070',    desc:'userdel executed. Attacker removing backdoor account.'},
+          {id:'PRIV_CMD',   name:'Privileged Command',       severity:'HIGH',threat:'Privilege Escalation',  mitre:'T1068',    desc:'Setuid/setgid execution. SUID binaries used for privilege escalation.'},
+          {id:'PTRACE',     name:'Process Trace/Debug',      severity:'HIGH',threat:'Credential Dumping',     mitre:'T1003',    desc:'ptrace syscall. Used for process injection and memory dumping.'},
+          {id:'KERNEL_MOD', name:'Kernel Module Load',       severity:'CRIT',threat:'Rootkit/Persistence',   mitre:'T1014',    desc:'insmod/modprobe — kernel module loaded. Rootkit deployment indicator.'},
+          {id:'MMAP_EXEC',  name:'Executable Memory Map',    severity:'HIGH',threat:'Exploitation',          mitre:'T1055',    desc:'mmap with PROT_EXEC. Shellcode execution or process injection.'},
+          {id:'CHMOD',      name:'File Permissions Changed', severity:'MED', threat:'Defense Evasion',        mitre:'T1222',    desc:'chmod/chown. Attacker granting world-write on sensitive files.'},
+          {id:'CHOWN',      name:'File Ownership Changed',   severity:'MED', threat:'Privilege Escalation',  mitre:'T1222',    desc:'File ownership change. Changing to root ownership for SUID exploitation.'},
+        ]
+      },
+      syslog:{
+        label:'Syslog/System', source:'/var/log/syslog or /var/log/messages',
+        events:[
+          {id:'kernel_oom',    name:'OOM Killer',           severity:'MED', threat:'DoS/Cryptomining',        mitre:'T1496',    desc:'Out-of-memory kill. Cryptomining may exhaust system resources.'},
+          {id:'service_start', name:'Systemd Service Start', severity:'MED',threat:'Persistence/Execution',   mitre:'T1543.002',desc:'Service started. New or modified services = persistence mechanism.'},
+          {id:'service_fail',  name:'Service Failed',        severity:'MED',threat:'Defense Evasion/Crash',   mitre:'T1489',    desc:'Service crashed. AV/EDR process killed by attacker.'},
+          {id:'cron_execute',  name:'Cron Execution',        severity:'MED',threat:'Persistence',             mitre:'T1053.003',desc:'Cron job ran. New crontab entries for persistence.'},
+          {id:'iptables_log',  name:'Firewall/iptables Log', severity:'MED',threat:'Discovery/C2',            mitre:'T1046',    desc:'Firewall rule match. Port scanning, C2 attempts visible here.'},
+          {id:'disk_error',    name:'Disk I/O Error',        severity:'HIGH',threat:'Ransomware/Wiper',       mitre:'T1485',    desc:'Disk error. Mass disk write errors during ransomware encryption.'},
+          {id:'segfault',      name:'Segmentation Fault',    severity:'MED',threat:'Exploitation',            mitre:'T1203',    desc:'Process segfault. May indicate exploitation attempt or buffer overflow.'},
+        ]
+      },
+      bash:{
+        label:'Bash History & Shell', source:'/root/.bash_history + auditd execve',
+        events:[
+          {id:'history_cleared',name:'Bash History Cleared', severity:'HIGH',threat:'Defense Evasion',        mitre:'T1070.003',desc:'history -c or .bash_history deleted. Attacker covering command trail.'},
+          {id:'curl_wget',      name:'File Download (curl/wget)',severity:'HIGH',threat:'Ingress Tool Transfer',mitre:'T1105',   desc:'File download. Check destination — tool droppers, malware downloads.'},
+          {id:'nc_listener',   name:'Netcat Listener',       severity:'HIGH',threat:'C2/Reverse Shell',       mitre:'T1059.004',desc:'nc -lvp = reverse shell listener. Immediate investigation required.'},
+          {id:'base64_decode',  name:'Base64 Decode Execution',severity:'HIGH',threat:'Obfuscation/Execution',mitre:'T1027',   desc:'base64 -d | bash or similar. Classic payload obfuscation pattern.'},
+          {id:'ptrace_inject',  name:'GDB/strace Process Attach',severity:'HIGH',threat:'Credential Dumping',mitre:'T1003',    desc:'gdb --pid or strace on sensitive processes. Memory inspection.'},
+          {id:'passwd_shadow',  name:'/etc/passwd or /etc/shadow Read',severity:'HIGH',threat:'Credential Access',mitre:'T1003.008',desc:'Direct password file access. cat /etc/shadow = credential theft.'},
+          {id:'crontab_edit',  name:'Crontab Edit',          severity:'HIGH',threat:'Persistence',            mitre:'T1053.003',desc:'crontab -e or cron file modification. Attacker persistence mechanism.'},
+          {id:'setuid_suid',   name:'SUID Binary Execution',  severity:'HIGH',threat:'Privilege Escalation',  mitre:'T1548.001',desc:'chmod +s or SUID binary run. Local privilege escalation vector.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // AZURE / M365
+  // ════════════════════════════════════════════════════════
+  azure:{
+    label:'Azure / M365', icon:'☁️', color:'#00bcf2',
+    categories:{
+      azuread:{
+        label:'Azure AD / Entra ID', source:'SigninLogs, AuditLogs, AADRiskyUsers',
+        events:[
+          {id:'SigninLogs_success',name:'Sign-In Success',    severity:'INFO',threat:'Baseline/Account Takeover',mitre:'T1078.004',desc:'Successful Azure AD signin. Monitor location, device, application anomalies.'},
+          {id:'SigninLogs_fail',   name:'Sign-In Failure',    severity:'MED', threat:'Brute Force/Password Spray',mitre:'T1110',   desc:'Failed signin. Result codes: 50126=wrong pwd, 50055=expired, 50057=disabled.'},
+          {id:'MFAFraud',          name:'MFA Fraud Alert',    severity:'CRIT',threat:'MFA Fatigue Attack',       mitre:'T1621',    desc:'User reported MFA fraud. User denied push they did not initiate.'},
+          {id:'ConditionalAccess', name:'CA Policy Blocked',  severity:'MED', threat:'Authentication Anomaly',  mitre:'T1078',    desc:'Conditional Access blocked signin. Check what policy and why it triggered.'},
+          {id:'RiskySignin',       name:'Risky Sign-In Detected',severity:'HIGH',threat:'Account Compromise',   mitre:'T1078',    desc:'MSFT identified anomalous signin. Unfamiliar location, leaked credentials, etc.'},
+          {id:'TokenTheft',        name:'Token Theft Detected',severity:'CRIT',threat:'Session Hijacking',      mitre:'T1539',    desc:'AiTM/token replay detected. Session cookie reused from different IP.'},
+          {id:'NewDevice',         name:'New Device Registration',severity:'HIGH',threat:'Persistence/MFA Bypass',mitre:'T1098',  desc:'New device registered to account. Attacker registering their device for persistence.'},
+          {id:'UserCreated',       name:'User Account Created',severity:'HIGH',threat:'Persistence',            mitre:'T1136.003',desc:'New Azure AD user. Backdoor account creation.'},
+          {id:'RoleAssigned',      name:'Directory Role Assigned',severity:'CRIT',threat:'Privilege Escalation',mitre:'T1098.003',desc:'Admin role granted. Global Admin, Security Admin, Exchange Admin are critical.'},
+          {id:'AppConsent',        name:'OAuth App Consent',  severity:'HIGH',threat:'Consent Phishing',        mitre:'T1550.001',desc:'OAuth app consent granted by user. APT29/Scattered Spider use this for persistence.'},
+          {id:'AppSecretAdded',    name:'App Client Secret Added',severity:'HIGH',threat:'Persistence',         mitre:'T1098.001',desc:'Service principal credential added. Backdoor access to app with all permissions.'},
+          {id:'PasswordReset',     name:'Password Reset',     severity:'HIGH',threat:'Account Takeover',       mitre:'T1098',    desc:'User password reset. Self-service or admin. Check who initiated.'},
+          {id:'MFAReset',          name:'MFA Reset',          severity:'CRIT',threat:'Account Takeover',       mitre:'T1098',    desc:'MFA methods removed and re-registered. Account takeover after credential theft.'},
+          {id:'ImpossibleTravel',  name:'Impossible Travel',  severity:'HIGH',threat:'Account Takeover',       mitre:'T1078',    desc:'Signin from locations impossible to travel between in elapsed time.'},
+          {id:'GlobalAdminAdded',  name:'Global Admin Assigned',severity:'CRIT',threat:'Privilege Escalation', mitre:'T1098.003',desc:'Global Administrator role granted. Highest privilege in Azure AD tenant.'},
+        ]
+      },
+      o365:{
+        label:'Office 365 / Exchange Online', source:'OfficeActivity (Unified Audit Log)',
+        events:[
+          {id:'MailItemsAccessed', name:'Emails Read/Accessed',severity:'HIGH',threat:'Email Exfiltration',    mitre:'T1114.002',desc:'Mailbox items accessed via API. APT29 used this to read State Dept emails.'},
+          {id:'MailForwardRule',   name:'Forward Rule Created',severity:'CRIT',threat:'Email Exfiltration',    mitre:'T1114.003',desc:'Auto-forward rule to external address. BEC and APT exfiltration indicator.'},
+          {id:'FileDownloaded',    name:'SharePoint File Downloaded',severity:'MED',threat:'Data Exfiltration',mitre:'T1213.002',desc:'File downloaded from SharePoint. Mass download = data exfiltration prep.'},
+          {id:'FileMassDownload',  name:'Mass File Download',  severity:'HIGH',threat:'Data Exfiltration',    mitre:'T1213',    desc:'Anomalous volume of file downloads. Threshold-based alert.'},
+          {id:'TeamsMsgExfil',     name:'Teams Message Exported',severity:'HIGH',threat:'Data Exfiltration',  mitre:'T1213',    desc:'Teams messages accessed via Graph API in bulk. Recon or exfiltration.'},
+          {id:'AdminConsent',      name:'Admin Consent Granted',severity:'CRIT',threat:'Consent Phishing',    mitre:'T1550.001',desc:'Admin granted org-wide OAuth consent. Access to all users data in tenant.'},
+          {id:'eDiscovery',        name:'eDiscovery Search',   severity:'HIGH',threat:'Data Collection',       mitre:'T1213',    desc:'Compliance search on mailboxes. Attacker may stage exfil via compliance tools.'},
+          {id:'MailboxPermission', name:'Mailbox Permission Added',severity:'HIGH',threat:'Email Access',      mitre:'T1098',    desc:'Full mailbox access granted. FullAccess allows reading another users email.'},
+          {id:'InboxRuleModified', name:'Inbox Rule Modified',severity:'HIGH',threat:'Defense Evasion/Exfil', mitre:'T1564.008',desc:'Email rule hiding/deleting emails. BEC actors hide payment diversion emails.'},
+        ]
+      },
+      azure_activity:{
+        label:'Azure Activity Log', source:'AzureActivity',
+        events:[
+          {id:'StorageBlobRead',   name:'Storage Blob Accessed',severity:'MED',threat:'Data Exfiltration',     mitre:'T1530',    desc:'Azure blob storage access. Check for anomalous downloads from storage accounts.'},
+          {id:'KeyVaultAccess',    name:'Key Vault Secret Access',severity:'HIGH',threat:'Credential Theft',   mitre:'T1555',    desc:'Secret or key accessed in Key Vault. Unauthorized access to stored credentials.'},
+          {id:'PolicyDelete',      name:'Policy Assignment Deleted',severity:'HIGH',threat:'Defense Evasion', mitre:'T1562',    desc:'Azure Policy deleted. May be removing security guardrails.'},
+          {id:'DiagnosticsOff',    name:'Diagnostic Settings Removed',severity:'HIGH',threat:'Defense Evasion',mitre:'T1562.008',desc:'Logging/monitoring disabled. Attacker removing visibility before attack.'},
+          {id:'RoleAssignAzure',   name:'IAM Role Assignment',  severity:'HIGH',threat:'Privilege Escalation', mitre:'T1098',    desc:'Azure RBAC role assigned. Owner, Contributor on subscriptions = critical.'},
+          {id:'VMExtension',       name:'VM Extension Added',   severity:'HIGH',threat:'Persistence/Execution',mitre:'T1554',    desc:'VM extension deployed. Used for code execution, backdoor on Azure VMs.'},
+          {id:'AutomationRunbook', name:'Automation Runbook Executed',severity:'HIGH',threat:'Execution',      mitre:'T1059',    desc:'Azure Automation runbook ran. Can execute code in VM context.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // AWS
+  // ════════════════════════════════════════════════════════
+  aws:{
+    label:'AWS', icon:'🟠', color:'#ff9900',
+    categories:{
+      cloudtrail:{
+        label:'CloudTrail Events', source:'AWS CloudTrail',
+        events:[
+          {id:'ConsoleLogin',        name:'AWS Console Login',      severity:'INFO',threat:'Account Access',      mitre:'T1078.004',desc:'Console login. Monitor MFA usage, source IP, user agent.'},
+          {id:'ConsoleLoginFail',    name:'Console Login Failed',   severity:'MED', threat:'Brute Force',         mitre:'T1110',    desc:'Failed console login. High frequency = brute force on IAM.'},
+          {id:'GetCallerIdentity',   name:'Identity Enumeration',   severity:'LOW', threat:'Discovery/Recon',     mitre:'T1069',    desc:'STS GetCallerIdentity — attacker verifying their access level.'},
+          {id:'ListBuckets',         name:'S3 Bucket Enumeration',  severity:'MED', threat:'Discovery',           mitre:'T1619',    desc:'ListBuckets from new/anomalous principal. S3 recon.'},
+          {id:'GetObject',           name:'S3 Object Download',     severity:'MED', threat:'Data Exfiltration',   mitre:'T1530',    desc:'S3 GetObject. Mass downloads or sensitive bucket access.'},
+          {id:'PutBucketPolicy',     name:'S3 Bucket Policy Change',severity:'HIGH',threat:'Data Exfiltration',   mitre:'T1537',    desc:'Bucket policy modified to allow public access or cross-account.'},
+          {id:'CreateAccessKey',     name:'IAM Access Key Created', severity:'HIGH',threat:'Persistence',         mitre:'T1098',    desc:'New access key. Attacker creating persistent programmatic access.'},
+          {id:'AttachRolePolicy',    name:'Policy Attached to Role',severity:'HIGH',threat:'Privilege Escalation',mitre:'T1098',    desc:'AdministratorAccess or PowerUserAccess attached = privilege escalation.'},
+          {id:'CreateRole',          name:'IAM Role Created',       severity:'HIGH',threat:'Persistence',         mitre:'T1136',    desc:'New IAM role. Check trust policy — cross-account trust = backdoor.'},
+          {id:'AssumeRole',          name:'Role Assumed (STS)',      severity:'MED', threat:'Lateral Movement',   mitre:'T1550.001',desc:'Role assumption. Cross-account or unexpected role usage.'},
+          {id:'AssumeRoleWithSAML',  name:'SAML Role Assumption',   severity:'HIGH',threat:'Golden SAML Attack',  mitre:'T1550.001',desc:'SAML federation role assumption. Used in Golden SAML attacks.'},
+          {id:'PutUserPolicy',       name:'Inline Policy Added',    severity:'HIGH',threat:'Privilege Escalation',mitre:'T1098',    desc:'Inline policy attached directly to user/role — privilege escalation.'},
+          {id:'CreateLoginProfile',  name:'Console Access Enabled', severity:'HIGH',threat:'Persistence',         mitre:'T1098',    desc:'Console password set for IAM user. Enabling console access for existing user.'},
+          {id:'EC2CommandSend',      name:'SSM Command Execution',  severity:'HIGH',threat:'Execution',           mitre:'T1059',    desc:'AWS SSM RunCommand sent to EC2 instance — remote code execution.'},
+          {id:'LambdaUpdate',        name:'Lambda Function Updated',severity:'HIGH',threat:'Persistence/Execution',mitre:'T1059',  desc:'Lambda code updated. Backdoored Lambda for persistent code execution.'},
+          {id:'CloudTrailStop',      name:'CloudTrail Logging Stopped',severity:'CRIT',threat:'Defense Evasion', mitre:'T1562.008',desc:'Audit logging stopped. Attacker disabling visibility before attack.'},
+          {id:'DisableALARM',        name:'CloudWatch Alarm Disabled',severity:'HIGH',threat:'Defense Evasion',  mitre:'T1562',    desc:'Monitoring alarm disabled. Removing detection capability.'},
+          {id:'GuardDutyDisable',    name:'GuardDuty Disabled',     severity:'CRIT',threat:'Defense Evasion',    mitre:'T1562',    desc:'AWS GuardDuty disabled. Attacker blinding threat detection service.'},
+          {id:'SecurityHubDisable',  name:'Security Hub Disabled',  severity:'CRIT',threat:'Defense Evasion',    mitre:'T1562',    desc:'Security Hub disabled. Removing centralized security findings.'},
+          {id:'NetworkACL_Change',   name:'NACL Rule Added',        severity:'HIGH',threat:'Defense Evasion',    mitre:'T1562.007',desc:'Network ACL modified. Attacker opening inbound ports for backdoor.'},
+          {id:'RootAccountUse',      name:'Root Account Used',      severity:'CRIT',threat:'Privilege Abuse',    mitre:'T1078',    desc:'AWS root account used. Should never be used for daily operations.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // GCP
+  // ════════════════════════════════════════════════════════
+  gcp:{
+    label:'GCP', icon:'🔵', color:'#4285f4',
+    categories:{
+      audit:{
+        label:'Cloud Audit Logs', source:'GCP Cloud Audit Logs (Admin/Data Activity)',
+        events:[
+          {id:'google.iam.admin.v1.CreateServiceAccountKey',name:'SA Key Created',severity:'HIGH',threat:'Persistence',mitre:'T1098',desc:'Service account key created. Persistent programmatic access outside Google SSO.'},
+          {id:'google.iam.admin.v1.SetIamPolicy',           name:'IAM Policy Changed',severity:'HIGH',threat:'Privilege Escalation',mitre:'T1098',desc:'IAM binding changed. roles/owner or roles/editor granted = privilege escalation.'},
+          {id:'google.iam.admin.v1.CreateServiceAccount',   name:'Service Account Created',severity:'HIGH',threat:'Persistence',mitre:'T1136',desc:'New service account. Check permissions immediately after creation.'},
+          {id:'storage.buckets.list',                       name:'GCS Bucket Enumeration',severity:'MED',threat:'Discovery',mitre:'T1619',desc:'Bucket listing. Cloud storage recon by attacker.'},
+          {id:'storage.objects.get',                        name:'GCS File Download',severity:'MED',threat:'Data Exfiltration',mitre:'T1530',desc:'Object downloaded from Cloud Storage. Mass downloads = exfiltration.'},
+          {id:'compute.instances.setMetadata',              name:'VM Metadata Modified',severity:'HIGH',threat:'Persistence',mitre:'T1098',desc:'SSH keys added via instance metadata. Persistent backdoor SSH access.'},
+          {id:'logging.sinks.create',                       name:'Log Export Sink Created',severity:'HIGH',threat:'Data Exfiltration',mitre:'T1537',desc:'Log sink to external bucket. Logs being exported to attacker-controlled storage.'},
+          {id:'audit_config_exemption',                     name:'Audit Logging Exempted',severity:'CRIT',threat:'Defense Evasion',mitre:'T1562.008',desc:'Principal exempted from audit logging. Removing visibility from specific account.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // NETWORK
+  // ════════════════════════════════════════════════════════
+  network:{
+    label:'Network & Firewall', icon:'🌐', color:'#39ff14',
+    categories:{
+      firewall:{
+        label:'Firewall Logs (Palo Alto / Fortinet / Cisco)', source:'Firewall Syslog / CEF',
+        events:[
+          {id:'fw_allow',      name:'Traffic Allowed',       severity:'INFO',threat:'Baseline/C2',             mitre:'T1071',    desc:'Permitted traffic. Baseline then alert on anomalous destinations.'},
+          {id:'fw_deny',       name:'Traffic Denied',        severity:'LOW', threat:'Scanning/Recon',          mitre:'T1046',    desc:'Blocked traffic. Mass denies from single source = port scan.'},
+          {id:'fw_threat',     name:'Threat Signature Hit',  severity:'HIGH',threat:'Malware/Exploit',         mitre:'T1190',    desc:'IPS/IDS rule triggered. Exploit attempt or known malware traffic.'},
+          {id:'fw_c2',         name:'C2 URL Category Block', severity:'HIGH',threat:'C2 Communication',        mitre:'T1071',    desc:'URL categorized as C2 blocked by next-gen firewall.'},
+          {id:'fw_beaconing',  name:'Beaconing Pattern',     severity:'HIGH',threat:'C2 Beaconing',            mitre:'T1071',    desc:'Regular interval connections to same dest = C2 beacon. Check JA3 fingerprint.'},
+          {id:'fw_exfil',      name:'Large Outbound Transfer',severity:'HIGH',threat:'Data Exfiltration',      mitre:'T1048',    desc:'Unusually large outbound transfer. Exfiltration threshold alert.'},
+          {id:'fw_new_ext',    name:'New External Connection',severity:'MED', threat:'C2/Lateral',             mitre:'T1071',    desc:'First-seen external destination. New C2 infrastructure detection.'},
+          {id:'fw_scan',       name:'Port Scan Detected',    severity:'MED', threat:'Reconnaissance',          mitre:'T1046',    desc:'Port scanning pattern. Pre-attack reconnaissance from external or internal host.'},
+          {id:'fw_tor',        name:'TOR Exit Node Traffic', severity:'HIGH',threat:'Anonymization/C2',        mitre:'T1090.003',desc:'Traffic to/from TOR exit nodes. Attacker anonymizing C2 traffic.'},
+          {id:'fw_vpn_new',    name:'New VPN User',          severity:'MED', threat:'Initial Access',          mitre:'T1133',    desc:'VPN auth from unknown user or new device. Valid credential misuse.'},
+        ]
+      },
+      dns:{
+        label:'DNS Logs', source:'DNS Server / Umbrella / Infoblox',
+        events:[
+          {id:'dns_query',     name:'DNS Query',              severity:'INFO',threat:'C2/Exfiltration',         mitre:'T1071.004',desc:'DNS resolution. High entropy labels = DGA. Long subdomains = DNS exfil.'},
+          {id:'dns_nxdomain',  name:'NXDOMAIN Response',     severity:'LOW', threat:'DGA/C2',                  mitre:'T1568.002',desc:'Domain not found. Mass NXDOMAINs = DGA malware scanning for active C2.'},
+          {id:'dns_new_domain',name:'Newly Registered Domain',severity:'HIGH',threat:'C2/Phishing',            mitre:'T1568',    desc:'Domain registered <30 days. Phishing infrastructure and C2 domains.'},
+          {id:'dns_txt',       name:'TXT Record Query',       severity:'MED', threat:'C2/DNS Exfiltration',    mitre:'T1071.004',desc:'TXT record lookup. C2 instructions or data often hidden in TXT records.'},
+          {id:'dns_exfil',     name:'DNS Exfiltration Pattern',severity:'CRIT',threat:'Data Exfiltration',     mitre:'T1048.003',desc:'High-volume subdomain queries with encoded data in labels.'},
+          {id:'dns_doh',       name:'DNS over HTTPS (DoH)',   severity:'MED', threat:'Defense Evasion',         mitre:'T1071.004',desc:'Encrypted DNS bypassing local DNS logging. Used to hide C2 lookups.'},
+          {id:'dns_fast_flux', name:'Fast Flux DNS',          severity:'HIGH',threat:'C2 Infrastructure',      mitre:'T1568',    desc:'Rapid IP changes for single domain. C2 resilience technique.'},
+          {id:'dns_dga',       name:'DGA Domain Pattern',     severity:'HIGH',threat:'Malware C2',             mitre:'T1568.002',desc:'Domain generation algorithm pattern. Random-looking domain queried by malware.'},
+        ]
+      },
+      proxy:{
+        label:'Web Proxy / Zscaler / BlueCoat', source:'Proxy Logs',
+        events:[
+          {id:'proxy_allow',    name:'HTTP/S Request Allowed',severity:'INFO',threat:'Baseline',                mitre:'T1071',    desc:'Permitted web request. Baseline user/app behavior.'},
+          {id:'proxy_block',    name:'HTTP/S Request Blocked',severity:'LOW', threat:'Policy Violation',        mitre:'T1071',    desc:'Blocked by policy category. Malware, phishing, C2 categories most important.'},
+          {id:'proxy_malware',  name:'Malware Download Blocked',severity:'HIGH',threat:'Malware Delivery',      mitre:'T1105',    desc:'Malware blocked by proxy. Attacker attempted payload delivery.'},
+          {id:'proxy_large',    name:'Large Upload',          severity:'HIGH',threat:'Data Exfiltration',       mitre:'T1048',    desc:'Large HTTP POST or upload. Data exfiltration via web channel.'},
+          {id:'proxy_useragent',name:'Suspicious User Agent', severity:'MED', threat:'C2/Malware',             mitre:'T1071',    desc:'Known-malicious or unusual user agent string in HTTP request.'},
+          {id:'proxy_ssl_err',  name:'SSL Certificate Error', severity:'MED', threat:'AitM/C2',                mitre:'T1557',    desc:'SSL error may indicate self-signed cert on C2 or MITM attack.'},
+        ]
+      },
+      zeek:{
+        label:'Zeek / Bro IDS', source:'Zeek logs (conn.log, dns.log, http.log, ssl.log)',
+        events:[
+          {id:'zeek_conn',     name:'Network Connection (conn.log)',severity:'INFO',threat:'C2/Lateral',        mitre:'T1071',    desc:'Full connection record. Duration, bytes, protocol state for every connection.'},
+          {id:'zeek_dns',      name:'DNS Transaction (dns.log)',severity:'INFO',threat:'C2/Exfil',              mitre:'T1071.004',desc:'Full DNS query/response. Both request and answer captured.'},
+          {id:'zeek_http',     name:'HTTP Transaction (http.log)',severity:'INFO',threat:'C2/Exfil',            mitre:'T1071.001',desc:'Full HTTP header analysis. User-agent, referrer, POST data size.'},
+          {id:'zeek_ssl',      name:'SSL Session (ssl.log)',    severity:'MED', threat:'C2/Encryption',         mitre:'T1573',    desc:'TLS session details. JA3/JA3S fingerprints for malware C2 identification.'},
+          {id:'zeek_weird',    name:'Weird/Anomaly (weird.log)', severity:'HIGH',threat:'Exploitation/Evasion', mitre:'T1211',    desc:'Protocol anomaly detected by Zeek. Unusual packet structure or behavior.'},
+          {id:'zeek_notice',   name:'IDS Notice (notice.log)', severity:'HIGH',threat:'Attack Detection',       mitre:'',         desc:'Zeek IDS rule match. Port scan, brute force, C2 patterns detected.'},
+          {id:'zeek_x509',     name:'Certificate (x509.log)',  severity:'MED', threat:'C2/Phishing',            mitre:'T1568',    desc:'TLS certificate details. Self-signed or suspicious certs on C2.'},
+          {id:'zeek_smb',      name:'SMB Activity (smb_mapping.log)',severity:'MED',threat:'Lateral Movement',  mitre:'T1021.002',desc:'SMB share access. ADMIN$, C$ access from workstations = lateral movement.'},
+        ]
+      },
+      suricata:{
+        label:'Suricata IDS/IPS', source:'Suricata EVE-JSON',
+        events:[
+          {id:'suricata_alert',name:'Suricata IDS Alert',    severity:'HIGH',threat:'Attack Detection',         mitre:'',         desc:'Rule match for known attack pattern. Correlate with firewall and endpoint.'},
+          {id:'suricata_et',   name:'EmergingThreats Rule Hit',severity:'HIGH',threat:'Malware/C2/Exploit',     mitre:'',         desc:'ET signature match. Covers malware C2, exploits, scanning.'},
+          {id:'suricata_anomaly',name:'Protocol Anomaly',    severity:'MED', threat:'Exploitation',             mitre:'T1211',    desc:'Protocol specification violation. May indicate exploitation attempt.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // DATABASES
+  // ════════════════════════════════════════════════════════
+  database:{
+    label:'Databases', icon:'🗄️', color:'#9333ea',
+    categories:{
+      mssql:{
+        label:'SQL Server Audit', source:'SQL Server Audit / Application Event Log',
+        events:[
+          {id:'sql_login_ok',     name:'Login Successful',       severity:'INFO',threat:'Baseline',             mitre:'T1078',    desc:'SQL login success. Monitor sa account usage and unusual login times.'},
+          {id:'sql_login_fail',   name:'Login Failed',           severity:'MED', threat:'Brute Force',          mitre:'T1110',    desc:'SQL login failure. Mass failures = brute force. Default sa account targeted.'},
+          {id:'sql_xp_cmdshell',  name:'xp_cmdshell Execution',  severity:'CRIT',threat:'OS Command Injection', mitre:'T1505.001',desc:'OS command via SQL. Should be disabled. If triggered = critical incident.'},
+          {id:'sql_bulk_insert',  name:'BULK INSERT / OPENROWSET',severity:'HIGH',threat:'Data Exfiltration/Injection',mitre:'T1190',desc:'Bulk data operations. Used for data exfiltration or injection.'},
+          {id:'sql_schema_mod',   name:'Schema Change (DDL)',    severity:'HIGH',threat:'Persistence/Tampering', mitre:'T1565',    desc:'Table/schema creation/alteration/deletion. Unauthorized schema changes.'},
+          {id:'sql_dump',         name:'Mass SELECT / Data Dump',severity:'HIGH',threat:'Data Exfiltration',    mitre:'T1005',    desc:'Large SELECT against sensitive tables. User/credential table dumps.'},
+          {id:'sql_linked_server',name:'Linked Server Query',    severity:'HIGH',threat:'Lateral Movement',     mitre:'T1021',    desc:'Query via linked server. Lateral movement to other DB instances.'},
+          {id:'sql_privesc',      name:'Role/Permission Change', severity:'HIGH',threat:'Privilege Escalation', mitre:'T1098',    desc:'GRANT, DENY, REVOKE on critical objects. Escalating DB user privileges.'},
+          {id:'sql_stored_proc',  name:'Stored Procedure Created',severity:'HIGH',threat:'Persistence',         mitre:'T1505',    desc:'New stored procedure. Web shell equivalent in SQL Server.'},
+          {id:'sql_trigger',      name:'Trigger Created',        severity:'HIGH',threat:'Persistence',          mitre:'T1505',    desc:'SQL trigger for persistence. Executes code on specific DB events.'},
+        ]
+      },
+      mysql:{
+        label:'MySQL / MariaDB Audit', source:'MySQL General Log / Audit Plugin',
+        events:[
+          {id:'mysql_connect',    name:'Connection',             severity:'INFO',threat:'Authentication',        mitre:'T1078',    desc:'MySQL connection. Monitor root usage, unexpected source hosts.'},
+          {id:'mysql_query',      name:'Query Executed',         severity:'INFO',threat:'Data Access',           mitre:'T1005',    desc:'SQL query. Log sensitive table access (users, passwords, financial).'},
+          {id:'mysql_priv',       name:'GRANT Statement',        severity:'HIGH',threat:'Privilege Escalation',  mitre:'T1098',    desc:'GRANT ALL PRIVILEGES = full control. Privilege escalation in MySQL.'},
+          {id:'mysql_file_read',  name:'LOAD DATA INFILE',       severity:'HIGH',threat:'File Read/LFI',         mitre:'T1005',    desc:'File read via MySQL. Can read /etc/passwd on improperly configured server.'},
+          {id:'mysql_into_outfile',name:'SELECT INTO OUTFILE',   severity:'HIGH',threat:'Web Shell/Exfiltration',mitre:'T1505.003',desc:'Write file via MySQL. Used to create PHP web shells on web server.'},
+          {id:'mysql_udf',        name:'User Defined Function',  severity:'CRIT',threat:'OS Command Injection',  mitre:'T1059',    desc:'UDF loaded. Can execute OS commands. sys_exec() = code execution.'},
+        ]
+      },
+      mongodb:{
+        label:'MongoDB Logs', source:'MongoDB mongod.log',
+        events:[
+          {id:'mongo_auth_fail',  name:'Authentication Failure', severity:'MED', threat:'Brute Force',          mitre:'T1110',    desc:'MongoDB auth failure. Often exposed without auth — check immediately.'},
+          {id:'mongo_collection', name:'Collection Access',      severity:'INFO',threat:'Data Access',           mitre:'T1005',    desc:'Collection queried. Monitor for sensitive data collections.'},
+          {id:'mongo_admin_cmd',  name:'Admin Command',          severity:'HIGH',threat:'Privilege Abuse',       mitre:'T1078',    desc:'Admin database command. dropDatabase, createUser, copydbgetnonce.'},
+          {id:'mongo_dump',       name:'mongodump Executed',     severity:'HIGH',threat:'Data Exfiltration',    mitre:'T1005',    desc:'Full database dump. mongodump exporting all collections.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // WEB SERVERS & APPLICATIONS
+  // ════════════════════════════════════════════════════════
+  webserver:{
+    label:'Web Servers', icon:'🌍', color:'#22c55e',
+    categories:{
+      iis:{
+        label:'IIS (Windows Web Server)', source:'W3C Extended Log Format',
+        events:[
+          {id:'iis_401',       name:'401 Unauthorized',       severity:'MED', threat:'Brute Force/Auth Bypass',  mitre:'T1110',    desc:'Auth failure. Mass 401s = brute force on web application.'},
+          {id:'iis_403',       name:'403 Forbidden',          severity:'LOW', threat:'Reconnaissance',           mitre:'T1595',    desc:'Access denied. Directory traversal attempts, hidden file probing.'},
+          {id:'iis_404',       name:'404 Not Found',          severity:'LOW', threat:'Reconnaissance/Scanning',  mitre:'T1595',    desc:'Mass 404s = web scanner probing for vulnerable paths.'},
+          {id:'iis_500',       name:'500 Internal Server Error',severity:'MED',threat:'Exploitation',            mitre:'T1190',    desc:'Server error. May indicate SQL injection, XXE, or RCE attempt.'},
+          {id:'iis_webshell',  name:'Webshell Access Pattern',severity:'CRIT',threat:'Webshell/Backdoor',        mitre:'T1505.003',desc:'Unusual file in web root making system calls. cmd.exe parent of w3wp.exe.'},
+          {id:'iis_cmdinject', name:'Command Injection Pattern',severity:'CRIT',threat:'Remote Code Execution',  mitre:'T1190',    desc:'Shell metacharacters in URL/POST data. ; | && cmd injection.'},
+          {id:'iis_sqli',      name:'SQL Injection Pattern',  severity:'HIGH',threat:'SQL Injection',            mitre:'T1190',    desc:'UNION SELECT, OR 1=1, single-quote patterns in request.'},
+          {id:'iis_xss',       name:'XSS Pattern',            severity:'MED', threat:'Cross-Site Scripting',     mitre:'T1189',    desc:'Script tag injection patterns in GET/POST parameters.'},
+          {id:'iis_lfi',       name:'Local File Inclusion',   severity:'HIGH',threat:'File Inclusion',           mitre:'T1190',    desc:'../../../ traversal patterns. Reading sensitive server files.'},
+          {id:'iis_upload',    name:'File Upload',            severity:'HIGH',threat:'Webshell Upload',          mitre:'T1505.003',desc:'File uploaded to server. Check file type, destination directory.'},
+          {id:'iis_scanner',   name:'Web Scanner UA',         severity:'MED', threat:'Reconnaissance',           mitre:'T1595',    desc:'Known scanner user-agents: Nikto, sqlmap, Burp Suite, OWASP ZAP.'},
+        ]
+      },
+      apache:{
+        label:'Apache / Nginx', source:'access.log + error.log',
+        events:[
+          {id:'web_rce',       name:'Remote Code Execution Attempt',severity:'CRIT',threat:'RCE',               mitre:'T1190',    desc:'Command injection in URL or POST. PHP code eval, JSP execution.'},
+          {id:'web_probe',     name:'Common Vulnerability Probe',severity:'MED',threat:'Scanning',              mitre:'T1595',    desc:'Known vulnerable path probed: /wp-admin, /phpmyadmin, /.git, /actuator.'},
+          {id:'web_auth_brute',name:'Auth Brute Force (/login)',  severity:'HIGH',threat:'Brute Force',         mitre:'T1110',    desc:'Login endpoint hammered. Mass POSTs to /login, /admin, /wp-login.php.'},
+          {id:'web_log4shell', name:'Log4Shell CVE-2021-44228',  severity:'CRIT',threat:'Critical RCE',         mitre:'T1190',    desc:'${jndi:ldap://} in any header. Log4Shell — immediate critical response.'},
+          {id:'web_spring4',   name:'Spring4Shell CVE-2022-22965',severity:'CRIT',threat:'Critical RCE',        mitre:'T1190',    desc:'class.module.classLoader pattern in parameters. Spring RCE.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // CONTAINERS & KUBERNETES
+  // ════════════════════════════════════════════════════════
+  containers:{
+    label:'Containers / K8s', icon:'🐳', color:'#2563eb',
+    categories:{
+      kubernetes:{
+        label:'Kubernetes Audit Log', source:'kube-apiserver audit.log',
+        events:[
+          {id:'k8s_exec',       name:'Exec Into Pod',          severity:'HIGH',threat:'Lateral Movement/Execution',mitre:'T1059',  desc:'kubectl exec. Direct shell access into running container.'},
+          {id:'k8s_secret_get', name:'Secret Accessed',        severity:'HIGH',threat:'Credential Theft',         mitre:'T1552',    desc:'Kubernetes Secret read. API keys, passwords, TLS certs stolen.'},
+          {id:'k8s_sa_created', name:'Service Account Created',severity:'HIGH',threat:'Persistence',              mitre:'T1136',    desc:'New service account. Attacker creating persistent identity.'},
+          {id:'k8s_rb_created', name:'ClusterRoleBinding Created',severity:'CRIT',threat:'Privilege Escalation',  mitre:'T1098',    desc:'ClusterAdmin binding = full cluster control. Critical privilege escalation.'},
+          {id:'k8s_priv_pod',   name:'Privileged Pod Created', severity:'CRIT',threat:'Container Escape',         mitre:'T1611',    desc:'Privileged or hostPID pod = container escape to host node possible.'},
+          {id:'k8s_hostpath',   name:'HostPath Volume Mount',  severity:'HIGH',threat:'Container Escape',         mitre:'T1611',    desc:'Host filesystem mounted in container. Access to node secrets and files.'},
+          {id:'k8s_anon',       name:'Anonymous Request',      severity:'HIGH',threat:'Authentication Bypass',    mitre:'T1190',    desc:'Unauthenticated API request. Anonymous access may be misconfigured.'},
+          {id:'k8s_net_policy', name:'NetworkPolicy Deleted',  severity:'HIGH',threat:'Defense Evasion',         mitre:'T1562',    desc:'Network segmentation policy removed. Attacker enabling lateral movement.'},
+          {id:'k8s_ns_created', name:'Namespace Created',      severity:'MED', threat:'Persistence',              mitre:'T1136',    desc:'New namespace. Attacker creating isolated namespace for persistent workloads.'},
+        ]
+      },
+      docker:{
+        label:'Docker Events', source:'Docker daemon logs',
+        events:[
+          {id:'docker_run_priv',name:'Privileged Container',   severity:'CRIT',threat:'Container Escape',         mitre:'T1611',    desc:'docker run --privileged. Full host access from container.'},
+          {id:'docker_volume',  name:'Host Path Volume',       severity:'HIGH',threat:'Container Escape',         mitre:'T1611',    desc:'Host directory mounted. Access to sensitive host files from container.'},
+          {id:'docker_network', name:'Host Network Mode',      severity:'HIGH',threat:'Network Sniffing',         mitre:'T1040',    desc:'--network=host bypasses network isolation. Can sniff host traffic.'},
+          {id:'docker_exec',    name:'Container Exec',         severity:'HIGH',threat:'Execution/Lateral',        mitre:'T1059',    desc:'docker exec into running container. Interactive shell access.'},
+          {id:'docker_image_pull',name:'Suspicious Image Pull',severity:'MED',threat:'Execution/Malware',         mitre:'T1610',    desc:'Image pulled from untrusted registry or unusual image name (xmrig, etc.).'},
+          {id:'docker_socket',  name:'Docker Socket Mount',    severity:'CRIT',threat:'Container Escape',         mitre:'T1611',    desc:'Docker socket mounted in container — full host control via container.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // EMAIL SECURITY
+  // ════════════════════════════════════════════════════════
+  email:{
+    label:'Email Security', icon:'📧', color:'#dc2626',
+    categories:{
+      exchange:{
+        label:'Exchange Server / Exchange Online', source:'Exchange Message Tracking / UAL',
+        events:[
+          {id:'exch_receive',  name:'Message Received',        severity:'INFO',threat:'Phishing Delivery',       mitre:'T1566',    desc:'Email received. Baseline — flag based on external sender with attachment.'},
+          {id:'exch_send',     name:'Message Sent',            severity:'INFO',threat:'BEC/Phishing Detection',  mitre:'T1566',    desc:'Email sent. Unusual sending volume, external recipients, or after-hours.'},
+          {id:'exch_rule',     name:'Inbox Rule Created',      severity:'HIGH',threat:'Email Exfiltration',      mitre:'T1114.003',desc:'Auto-forward/move/delete rule. BEC actors hide malicious emails.'},
+          {id:'exch_forward',  name:'External Mail Forward',   severity:'CRIT',threat:'Email Exfiltration',      mitre:'T1114.003',desc:'All mail forwarded to external address. APT and BEC indicator.'},
+          {id:'exch_delegate', name:'Mailbox Delegation',      severity:'HIGH',threat:'Email Access',            mitre:'T1098',    desc:'FullAccess or Send-As granted to another account.'},
+          {id:'exch_phishing', name:'Phishing Reported',       severity:'HIGH',threat:'Phishing Campaign',       mitre:'T1566',    desc:'User-reported phishing. Investigate sender domain, links, attachments.'},
+          {id:'exch_block',    name:'Email Blocked (ATP)',     severity:'HIGH',threat:'Malware Delivery',        mitre:'T1566',    desc:'Defender ATP blocked malicious email. Review ATP reports for campaign.'},
+          {id:'exch_safe_link',name:'Safelinks Detonation',   severity:'HIGH',threat:'Phishing/Malware',        mitre:'T1566.002',desc:'Malicious URL detonated in sandbox. User clicked suspicious link.'},
+          {id:'exch_mass_send',name:'Mass Send Anomaly',       severity:'HIGH',threat:'Account Compromise/Spam', mitre:'T1534',    desc:'Account sending unusual volume. Compromised account for spam/phishing.'},
+        ]
+      },
+      gateway:{
+        label:'Email Gateway (Proofpoint / Mimecast)', source:'Email Security Gateway Logs',
+        events:[
+          {id:'gw_malware',    name:'Malware Attachment Blocked',severity:'HIGH',threat:'Malware Delivery',      mitre:'T1566.001',desc:'Malicious attachment blocked. Note file type and sender for hunting.'},
+          {id:'gw_phishing',   name:'Phishing URL Blocked',    severity:'HIGH',threat:'Phishing',                mitre:'T1566.002',desc:'Phishing link blocked. Check if similar links reached other users.'},
+          {id:'gw_spoof',      name:'Email Spoofing (DMARC Fail)',severity:'HIGH',threat:'Phishing/BEC',         mitre:'T1566',    desc:'DMARC/SPF/DKIM failure. Impersonation of trusted domain.'},
+          {id:'gw_qr',         name:'QR Code Phishing',        severity:'HIGH',threat:'QR Phishing (Quishing)', mitre:'T1566',    desc:'QR code in email bypasses URL scanning. Emerging phishing vector.'},
+          {id:'gw_zeroday',    name:'Zero-Day Attachment',     severity:'CRIT',threat:'Zero-Day Exploit',       mitre:'T1203',    desc:'Unknown file blocked by sandbox. Potential zero-day exploit delivery.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // LLM / AI SECURITY
+  // ════════════════════════════════════════════════════════
+  llm:{
+    label:'LLM / AI Systems', icon:'🤖', color:'#8b5cf6',
+    categories:{
+      llm_api:{
+        label:'LLM API & Gateway Logs', source:'OpenAI/Anthropic/Azure OpenAI API Logs',
+        events:[
+          {id:'llm_prompt_inject',name:'Prompt Injection Attempt',severity:'CRIT',threat:'Prompt Injection',    mitre:'AML.T0051',desc:'Input matches known injection patterns: "ignore previous instructions", "you are now DAN".'},
+          {id:'llm_jailbreak',   name:'Jailbreak Attempt',        severity:'HIGH',threat:'Safety Bypass',       mitre:'AML.T0054',desc:'Attempt to bypass safety filters: DAN mode, "pretend you are", hypothetical framings.'},
+          {id:'llm_pii_exfil',   name:'PII in Prompt',           severity:'HIGH',threat:'Data Exfiltration',    mitre:'AML.T0057',desc:'PII detected in user prompt: SSN, credit card, medical record numbers.'},
+          {id:'llm_data_exfil',  name:'Sensitive Data Extraction',severity:'CRIT',threat:'Indirect Exfiltration',mitre:'AML.T0057',desc:'LLM response contains apparent system prompt or internal data extraction.'},
+          {id:'llm_malcode',     name:'Malicious Code Request',   severity:'HIGH',threat:'Malware Generation',  mitre:'AML.T0054',desc:'Request for exploit code, malware, or vulnerability explanation with code.'},
+          {id:'llm_high_volume', name:'Rate Limit / High Volume', severity:'MED', threat:'DoS/Scraping',        mitre:'T1496',    desc:'Unusual request volume from single user/IP. Model scraping or DoS.'},
+          {id:'llm_model_exfil', name:'Model Extraction Attempt',severity:'HIGH',threat:'Model Theft',          mitre:'AML.T0044',desc:'Systematic probing to reconstruct model behavior. High volume diverse queries.'},
+          {id:'llm_indirect',    name:'Indirect Injection in Input',severity:'HIGH',threat:'Indirect Prompt Injection',mitre:'AML.T0051',desc:'Malicious instructions embedded in retrieved document, URL, or external data.'},
+          {id:'llm_agent_abuse', name:'Agent Unauthorized Action',severity:'CRIT',threat:'Agentic AI Abuse',   mitre:'AML.T0051',desc:'LLM agent performed action outside defined scope: file deletion, unauthorized API call.'},
+          {id:'llm_override',    name:'System Prompt Override',   severity:'CRIT',threat:'Prompt Injection',    mitre:'AML.T0051',desc:'Apparent success of system prompt override — response violates guardrails.'},
+        ]
+      },
+      ml_infra:{
+        label:'ML Infrastructure', source:'MLflow / Kubeflow / Model Registry Logs',
+        events:[
+          {id:'ml_model_access', name:'Model File Accessed',      severity:'HIGH',threat:'Model Theft',         mitre:'AML.T0044',desc:'Model weights or parameters accessed outside training pipeline.'},
+          {id:'ml_training_mod', name:'Training Data Modified',   severity:'CRIT',threat:'Data Poisoning',      mitre:'AML.T0020',desc:'Training dataset modified. Backdoor or bias injection into model.'},
+          {id:'ml_model_deploy', name:'Unauthorized Model Deploy',severity:'HIGH',threat:'Backdoored Model',    mitre:'AML.T0018',desc:'Model deployed without approval process. Potentially backdoored.'},
+          {id:'ml_registry_mod', name:'Model Registry Tampered',  severity:'HIGH',threat:'Supply Chain',        mitre:'T1195',    desc:'Model registry entry modified. Version, hash, or metadata tampered.'},
+          {id:'ml_gpu_spike',    name:'GPU Utilization Spike',    severity:'MED', threat:'Cryptomining/Abuse',  mitre:'T1496',    desc:'Unusual GPU spike outside training jobs. Cryptomining on GPU instances.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // IDENTITY & PAM
+  // ════════════════════════════════════════════════════════
+  identity:{
+    label:'Identity & PAM', icon:'🔐', color:'#f59e0b',
+    categories:{
+      okta:{
+        label:'Okta Identity Platform', source:'Okta System Log',
+        events:[
+          {id:'okta_login_ok',  name:'User Login Success',       severity:'INFO',threat:'Authentication Baseline',mitre:'T1078',   desc:'Successful Okta login. Baseline location, device, app.'},
+          {id:'okta_login_fail',name:'User Login Failure',       severity:'MED', threat:'Brute Force/Credential',  mitre:'T1110',   desc:'Okta auth failure. Multiple failures = credential stuffing.'},
+          {id:'okta_mfa_push',  name:'MFA Push Sent',            severity:'LOW', threat:'MFA Fatigue Tracking',    mitre:'T1621',   desc:'Push notification sent. Track pushes per user per hour.'},
+          {id:'okta_mfa_deny',  name:'MFA Push Denied by User',  severity:'HIGH',threat:'MFA Fatigue Attack',     mitre:'T1621',   desc:'User denied a push they did not initiate. Active MFA fatigue attack.'},
+          {id:'okta_mfa_enroll',name:'MFA Factor Enrolled',      severity:'HIGH',threat:'Persistence/Account Takeover',mitre:'T1098',desc:'New MFA device added. Attacker enrolling their device after account takeover.'},
+          {id:'okta_admin',     name:'Admin Role Granted',       severity:'CRIT',threat:'Privilege Escalation',   mitre:'T1098.003',desc:'Admin privilege granted. Super Admin = full tenant control.'},
+          {id:'okta_app_assign',name:'App Assigned to User',     severity:'MED', threat:'Privilege Expansion',    mitre:'T1098',   desc:'Application access granted. Sensitive app access expansion.'},
+          {id:'okta_policy_mod',name:'Policy Modified',          severity:'HIGH',threat:'Defense Evasion',        mitre:'T1562',   desc:'Auth or MFA policy weakened. Attackers weaken policy after access.'},
+          {id:'okta_token',     name:'API Token Created',        severity:'HIGH',threat:'Persistence',            mitre:'T1098',   desc:'Okta API token. Persistent programmatic access without MFA.'},
+          {id:'okta_session_hi',name:'Session Hijack (Risky)',   severity:'CRIT',threat:'Session Hijacking',      mitre:'T1539',   desc:'Okta detected suspicious session. Token replay or AiTM indicator.'},
+          {id:'okta_susp_agent',name:'Suspicious User Agent',    severity:'MED', threat:'Automation/Attack',      mitre:'T1110',   desc:'Non-browser UA doing auth attempts. Credential stuffing tool.'},
+        ]
+      },
+      pam:{
+        label:'PAM / CyberArk / BeyondTrust', source:'PAM Audit Logs',
+        events:[
+          {id:'pam_checkout',  name:'Credential Checkout',       severity:'MED', threat:'Privileged Access',      mitre:'T1078',   desc:'Privileged credential checked out. Monitor unusual account/time/user combos.'},
+          {id:'pam_record',    name:'Session Recording Started', severity:'INFO',threat:'Privileged Session',     mitre:'T1078',   desc:'Privileged session being recorded. Full keystrokes and screen capture.'},
+          {id:'pam_fail',      name:'Credential Checkout Failed',severity:'HIGH',threat:'Unauthorized Access',    mitre:'T1110',   desc:'Failed attempt to access privileged credential. Unauthorized access attempt.'},
+          {id:'pam_bypass',    name:'PSM Bypass Attempt',        severity:'CRIT',threat:'Privileged Access Bypass',mitre:'T1078',  desc:'Attempt to access target directly without PSM. Policy violation.'},
+          {id:'pam_admin_act', name:'Vault Admin Action',        severity:'HIGH',threat:'Privilege Abuse',        mitre:'T1098',   desc:'PAM vault admin operation: add safe, change policy, credential reset.'},
+          {id:'pam_brute',     name:'Multiple Checkout Failures',severity:'HIGH',threat:'Brute Force',            mitre:'T1110',   desc:'Repeated failed checkouts. Unauthorized user trying to access privileged accounts.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // APPLICATION SERVERS
+  // ════════════════════════════════════════════════════════
+  appserver:{
+    label:'Application Servers', icon:'⚙️', color:'#10b981',
+    categories:{
+      java:{
+        label:'Java Application Server (Tomcat/JBoss/WebLogic)', source:'Application Logs',
+        events:[
+          {id:'java_rce',      name:'Deserialization RCE',      severity:'CRIT',threat:'Remote Code Execution',  mitre:'T1190',   desc:'Java deserialization attack. Apache Commons, WebLogic, JBoss.'},
+          {id:'java_log4j',    name:'Log4Shell (CVE-2021-44228)',severity:'CRIT',threat:'Critical RCE',          mitre:'T1190',   desc:'Log4j JNDI injection. ${jndi:ldap://} in any logged field.'},
+          {id:'java_struts',   name:'Struts RCE',               severity:'CRIT',threat:'Critical RCE',          mitre:'T1190',   desc:'Apache Struts OGNL injection. Content-Type or URL parameter exploit.'},
+          {id:'java_exception',name:'Application Exception',    severity:'MED', threat:'Exploitation Attempt',  mitre:'T1190',   desc:'Uncaught exception. May indicate fuzzing, injection, or exploit attempt.'},
+          {id:'java_thread_dump',name:'Thread Dump',            severity:'LOW', threat:'Reconnaissance',        mitre:'T1595',   desc:'Full thread dump exposed. Reveals internal class structure and data.'},
+        ]
+      },
+      iis_app:{
+        label:'IIS Application (ASP.NET)', source:'IIS Logs + Windows Event Log',
+        events:[
+          {id:'aspnet_viewstate',name:'ViewState Deserialization',severity:'CRIT',threat:'RCE',                  mitre:'T1190',   desc:'ASP.NET ViewState tampered. Deserialization RCE if not using MAC key.'},
+          {id:'aspnet_debug',  name:'Debug Interface Exposed',  severity:'HIGH',threat:'Information Disclosure', mitre:'T1592',   desc:'ASP.NET debug endpoint accessible. elmah.axd, trace.axd exposed.'},
+        ]
+      },
+      sap:{
+        label:'SAP Application', source:'SAP System Log / Security Audit Log',
+        events:[
+          {id:'sap_logon',     name:'SAP System Login',         severity:'INFO',threat:'Authentication',         mitre:'T1078',   desc:'SAP logon. Monitor for SAP_ALL profile assignments and DDIC/SAP* usage.'},
+          {id:'sap_privileged',name:'Privileged SAP Auth',      severity:'HIGH',threat:'Privilege Abuse',        mitre:'T1078',   desc:'Login with SAP_ALL or SAP_NEW profile. Admin-level SAP access.'},
+          {id:'sap_rfc',       name:'RFC Remote Call',          severity:'MED', threat:'Lateral Movement',       mitre:'T1021',   desc:'Remote function call. SAP-to-SAP lateral movement or external RFC call.'},
+          {id:'sap_report',    name:'ABAP Report Executed',     severity:'MED', threat:'Execution',              mitre:'T1059',   desc:'Custom ABAP program run. Unauthorized custom code execution.'},
+          {id:'sap_os_cmd',    name:'OS Command (SM69)',        severity:'CRIT',threat:'OS Command Injection',   mitre:'T1059',   desc:'OS command executed via SAP SM69/SMGW. SAP OS command injection.'},
+          {id:'sap_schema',    name:'Schema/Table Change',      severity:'HIGH',threat:'Tampering',              mitre:'T1565',   desc:'SAP table structure modified. Data integrity compromise.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // ENDPOINT SECURITY
+  // ════════════════════════════════════════════════════════
+  edr:{
+    label:'EDR / AV', icon:'🛡', color:'#ef4444',
+    categories:{
+      crowdstrike:{
+        label:'CrowdStrike Falcon', source:'CrowdStrike Event Stream / Falcon Data Replicator',
+        events:[
+          {id:'cs_detect',     name:'Detection Alert',          severity:'HIGH',threat:'Malware/Attack',         mitre:'',        desc:'CrowdStrike detection. Severity: Info/Low/Med/High/Critical. Review IOC details.'},
+          {id:'cs_prevent',    name:'Prevention Event',         severity:'HIGH',threat:'Malware Blocked',        mitre:'',        desc:'Threat blocked/killed. Note what was prevented — correlate with other alerts.'},
+          {id:'cs_process',    name:'Suspicious Process',       severity:'MED', threat:'Execution',              mitre:'T1059',   desc:'Unusual process behavior. Command line, parent, network, file activity.'},
+          {id:'cs_network',    name:'Network Detection',        severity:'MED', threat:'C2/Lateral Movement',    mitre:'T1071',   desc:'Suspicious network connection from endpoint. C2 or lateral movement.'},
+          {id:'cs_policy_off', name:'Prevention Policy Off',    severity:'CRIT',threat:'Defense Evasion',        mitre:'T1562',   desc:'Prevention mode disabled on sensor. Attacker or admin disabling protection.'},
+          {id:'cs_sensor_off', name:'Sensor Uninstalled',       severity:'CRIT',threat:'Defense Evasion',        mitre:'T1562',   desc:'CrowdStrike agent removed. Attacker blinding endpoint visibility.'},
+        ]
+      },
+      defender:{
+        label:'Microsoft Defender for Endpoint', source:'DeviceEvents, DeviceAlertEvents',
+        events:[
+          {id:'mde_alert',     name:'MDE Alert',                severity:'HIGH',threat:'Malware/Attack',         mitre:'',        desc:'Defender alert. Map to MITRE and correlate with relevant logs.'},
+          {id:'mde_malware',   name:'Malware Detected',         severity:'HIGH',threat:'Malware',                mitre:'T1204',   desc:'Malware found. File hash, path, process context captured.'},
+          {id:'mde_exploit',   name:'Exploit Guard Alert',      severity:'HIGH',threat:'Exploitation',           mitre:'T1203',   desc:'Exploit guard rule triggered. ASR rule matched behavior.'},
+          {id:'mde_tamper',    name:'Tamper Protection Alert',  severity:'CRIT',threat:'Defense Evasion',        mitre:'T1562',   desc:'Attempt to disable Defender. Tampering with security settings.'},
+          {id:'mde_isolate',   name:'Device Isolated',          severity:'INFO',threat:'IR Response',            mitre:'',        desc:'Device isolated by security team. IR containment action.'},
+        ]
+      }
+    }
+  },
+
+  // ════════════════════════════════════════════════════════
+  // VPN & REMOTE ACCESS
+  // ════════════════════════════════════════════════════════
+  vpn:{
+    label:'VPN & Remote Access', icon:'🔑', color:'#06b6d4',
+    categories:{
+      vpn:{
+        label:'VPN Gateway (Palo Alto/Cisco/Fortinet)', source:'VPN Auth Logs',
+        events:[
+          {id:'vpn_connect',   name:'VPN Connection',           severity:'INFO',threat:'Initial Access/Baseline', mitre:'T1133',   desc:'VPN connected. Baseline users, devices, locations, times.'},
+          {id:'vpn_fail',      name:'VPN Auth Failure',         severity:'MED', threat:'Brute Force/Credential',  mitre:'T1110',   desc:'VPN login failed. Multiple failures = brute force or cred stuffing.'},
+          {id:'vpn_new_device',name:'New Device VPN',           severity:'MED', threat:'Initial Access',          mitre:'T1133',   desc:'First-seen device used for VPN. Possible attacker device.'},
+          {id:'vpn_new_geo',   name:'New Geographic Location',  severity:'HIGH',threat:'Account Takeover',       mitre:'T1078',   desc:'VPN from country never seen for this user. Account takeover indicator.'},
+          {id:'vpn_split_tun', name:'Split Tunnel Anomaly',     severity:'MED', threat:'Data Exfiltration',       mitre:'T1572',   desc:'Traffic bypassing VPN. Potential data exfiltration via direct internet.'},
+          {id:'vpn_large',     name:'High Bandwidth VPN Session',severity:'HIGH',threat:'Data Exfiltration',     mitre:'T1048',   desc:'Unusually large data transfer over VPN connection.'},
+        ]
+      }
+    }
+  },
+
+};
+
+// Calculate totals for summary
+router.get('/', (req, res) => {
+  const summary = {};
+  for (const [k,v] of Object.entries(LOG_LIBRARY)) {
+    let total = 0;
+    for (const cat of Object.values(v.categories||{})) {
+      total += (cat.events||[]).length;
+    }
+    summary[k] = { label: v.label, icon: v.icon, color: v.color, totalEvents: total };
+  }
+  res.json({ platforms: summary });
+});
+
+router.get('/:platform', (req, res) => {
+  const p = LOG_LIBRARY[req.params.platform];
+  if (!p) return res.status(404).json({ error: 'Platform not found' });
+  res.json(p);
+});
+
+module.exports = router;
+module.exports.LOG_LIBRARY = LOG_LIBRARY;

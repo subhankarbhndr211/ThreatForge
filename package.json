@@ -1,0 +1,54 @@
+{
+  "name": "soc-dashboard",
+  "version": "7.0.0",
+  "description": "SOC Dashboard — Autonomous Security Operations Center",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "nodemon server/server.js",
+    "install-all": "npm install",
+    "fix": "node fix-server-middleware.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint server/",
+    "db:migrate": "node scripts/migrate.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.20.9",
+    "@azure/identity": "^4.0.0",
+    "@azure/arm-network": "^21.1.0",
+    "amqplib": "^0.10.4",
+    "aws-sdk": "^2.1500.0",
+    "axios": "^1.13.6",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.8.1",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "express-rate-limit": "^7.5.1",
+    "express-winston": "^4.2.0",
+    "groq-sdk": "^0.5.0",
+    "helmet": "^7.2.0",
+    "jsonwebtoken": "^9.0.3",
+    "kafkajs": "^2.2.4",
+    "mathjs": "^15.1.1",
+    "mongoose": "^9.3.1",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "node-cache": "^5.1.2",
+    "node-cron": "^4.2.1",
+    "openai": "^4.104.0",
+    "pg": "^8.20.0",
+    "redis": "^5.11.0",
+    "uuid": "^9.0.1",
+    "validator": "^13.11.0",
+    "winston": "^3.19.0",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

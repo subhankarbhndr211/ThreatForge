@@ -1,0 +1,226 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: threatforge-enterprise
+  namespace: soc
+  labels:
+    app: threatforge
+    tier: analysis
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: threatforge
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: threatforge
+        tier: analysis
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3001"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: threatforge
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+      - name: threatforge
+        image: threatforge/enterprise:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 3001
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3001"
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: threatforge-config
+              key: log_level
+        - name: ENABLE_AI
+          valueFrom:
+            configMapKeyRef:
+              name: threatforge-config
+              key: enable_ai
+        - name: ENABLE_AUTO_RESPONSE
+          value: "false"
+        envFrom:
+        - secretRef:
+            name: threatforge-secrets
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+        - name: data
+          mountPath: /app/data
+      volumes:
+      - name: logs
+        emptyDir: {}
+      - name: data
+        emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - threatforge
+              topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: threatforge-service
+  namespace: soc
+  labels:
+    app: threatforge
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 3001
+    targetPort: http
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+    protocol: TCP
+  selector:
+    app: threatforge
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: threatforge-ingress
+  namespace: soc
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+spec:
+  tls:
+  - hosts:
+    - threatforge.example.com
+    secretName: threatforge-tls
+  rules:
+  - host: threatforge.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: threatforge-service
+            port:
+              number: 3001
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: threatforge
+  namespace: soc
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: threatforge-config
+  namespace: soc
+data:
+  log_level: "info"
+  enable_ai: "true"
+  enable_url_detonation: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: threatforge-secrets
+  namespace: soc
+type: Opaque
+stringData:
+  VIRUSTOTAL_API_KEY: "your-virustotal-api-key"
+  ABUSEIPDB_API_KEY: "your-abuseipdb-api-key"
+  OTX_API_KEY: "your-otx-api-key"
+  THREATFOX_API_KEY: "your-threatfox-api-key"
+  SPLUNK_HEC_URL: "https://splunk.example.com:8088/services/collector"
+  SPLUNK_HEC_TOKEN: "your-splunk-token"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: threatforge-hpa
+  namespace: soc
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: threatforge-enterprise
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
