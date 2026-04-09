@@ -64,6 +64,15 @@ This repository simulates real SOC Level 2+ operations and demonstrates practica
 - **Auto alert triage** - AI-based threat classification
 - **Export Reports** - JSON, Markdown, CSV formats
 
+### 🐞 CVE & Threat Intelligence
+- **CVE Database** - Auto-ingestion from NVD (National Vulnerability Database)
+- **CVE Analysis** - AI-powered CVE analysis with detection rules
+- **EPSS Scoring** - Exploit Prediction Scoring System integration
+- **KEV Integration** - CISA Known Exploited Vulnerabilities catalog
+- **CVSS Analysis** - Severity scoring and vulnerability prioritization
+- **MITRE ATT&CK Mapping** - Map CVEs to ATT&CK techniques
+- **Search & Filter** - Search CVEs by keyword, severity, date
+
 ### 🎣 Phishing Analysis
 - **Email Parsing** - Extract IOCs from .eml/.msg files
 - **IOC Extraction** - URLs, IPs, domains, hashes
@@ -102,9 +111,16 @@ python zeroday_ai.py
 
 ## ⚙️ Configuration
 
-Copy `.env.example` to `.env` and add your API keys:
+Copy `.env.example` to `.env` and configure:
 
 ```env
+# Database (PostgreSQL)
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=threatforge_soc
+DB_USER=postgres
+DB_PASSWORD=your_password
+
 # Threat Intelligence APIs
 VIRUSTOTAL_API_KEY=your_key
 ABUSEIPDB_API_KEY=your_key
@@ -116,6 +132,12 @@ PORT=3001
 NODE_ENV=development
 ```
 
+**Database Setup** (PostgreSQL):
+```sql
+CREATE DATABASE threatforge_soc;
+-- The app will auto-create tables on startup
+```
+
 ---
 
 ## 🛠️ Tech Stack
@@ -124,9 +146,10 @@ NODE_ENV=development
 |-----------|------------|
 | **Frontend** | Vanilla JS, HTML, CSS |
 | **Backend** | Node.js, Express |
+| **Database** | PostgreSQL (CVE storage, IOC data) |
 | **Packet Engine** | Python (Scapy, PyShark) |
 | **AI/ML Service** | Python (TensorFlow, Scikit-learn) |
-| **Database** | Redis, MongoDB (optional) |
+| **CVE Source** | NVD API, CISA KEV, First.org EPSS |
 | **Deployment** | Docker, Kubernetes |
 
 ---
