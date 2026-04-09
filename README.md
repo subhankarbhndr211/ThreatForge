@@ -58,6 +58,7 @@ This repository simulates real SOC Level 2+ operations and demonstrates practica
   - Cloud security incident response (AWS/Azure)
 
 ### 🤖 AI Triage & Automation (v7.0)
+- **LLM-Powered Triage** - OpenAI, Anthropic, Groq, Gemini integration
 - **Autonomous Investigation** - Auto-analyze IOCs with VT & AbuseIPDB
 - **Risk Scoring** - Calculate risk scores for each IP/endpoint
 - **Recommendations** - Context-aware remediation actions
@@ -148,7 +149,7 @@ CREATE DATABASE threatforge_soc;
 | **Backend** | Node.js, Express |
 | **Database** | PostgreSQL (CVE storage, IOC data) |
 | **Packet Engine** | Python (Scapy, PyShark) |
-| **AI/ML Service** | Python (TensorFlow, Scikit-learn) |
+| **AI Service** | Python (FastAPI, Pydantic) |
 | **CVE Source** | NVD API, CISA KEV, First.org EPSS |
 | **Deployment** | Docker, Kubernetes |
 
